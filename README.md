@@ -30,6 +30,7 @@ Delete the installed files either manually or by using the following commands:
 - For System wide installation:
 `sudo rm -rf /usr/share/gnome-shell/extensions/easyuserswitch@batwam.corp`
 
+Restart gnome-shell, using <kbd>Alt</kbd>+<kbd>F2</kbd> then `r`+<kbd>Enter</kbd> with Xorg or logout/login with Wayland.
 ## Extras
 Recommended system settings can be set in the Settings panel for the extension accessible through right click on the icon
 - An option is included to Enable/Disable the screen lock due to inactivity. This is a built-in gnome option which is only included in the Preferences for convenience
