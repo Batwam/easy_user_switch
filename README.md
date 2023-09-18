@@ -1,5 +1,7 @@
 # Gnome Panel User Switch
-Gnome-shell extension to easily switch between connected users using an icon on the panel which lists the users currently logged in. Note that is a user is not logged in, its name will not appear. You can then use the "Login Screen" option to go to the login screen and log this user in.
+Gnome-shell extension to easily switch between **connected** users using an icon on the panel which lists the users currently logged in. It is similar to using Ctrl+Alt+Fn but the extension will identigy the relevant Virtual terminal for each user and provides the ability to do it directly from the gnome panel.
+
+Note that is a user is not logged in, its name will not appear. You can then use the "Login Screen" option to go to the login screen and log this user in.
 
 This is loosely inspired by https://github.com/HROMANO/fastuserswitch in terms of functionality but uses an alternative method by simulating Ctrl+Alt+Fx to switch Virtual Terminal by running the `loginctl` command (or `chvt` as optional alternative).
 
