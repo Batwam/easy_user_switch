@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.easy-user-switch" path="/org/gnome/shell/extensions/easy-user-switch/">
+    <!-- See also: https://docs.gtk.org/glib/gvariant-format-strings.html -->
+    <key name="lock-screen-on-switch" type="b">
+      <default>false</default>
+    </key>
+    <key name="switch-method" type="s">
+      <default>'loginctl'</default>
+    </key>
+    <key name="debug-mode" type="b">
+      <default>false</default>
+    </key>
+  </schema>
+</schemalist>
