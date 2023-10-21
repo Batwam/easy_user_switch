@@ -1,49 +1,50 @@
-'use strict';
-
-const { Adw, Gio, Gtk } = imports.gi;
-
-const ExtensionUtils = imports.misc.extensionUtils;
-const Me = ExtensionUtils.getCurrentExtension();
-const extensionSettings = ExtensionUtils.getSettings(); //will use the default location set in metadata.json
-const systemSettings = ExtensionUtils.getSettings('org.gnome.desktop.screensaver');
+import Adw from 'gi://Adw';
+import Gio from 'gi://Gio';
+import Gtk from 'gi://Gtk';
+import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 function init() {
 }
 
-function fillPreferencesWindow(window) {
-    // Create a preferences page and group
-    let page, group, button;
+export default class EasyUserSwitchPreferences extends ExtensionPreferences {
+    fillPreferencesWindow(window){
+        const extensionSettings = this.getSettings();
+        const systemSettings = ExtensionPreferences.getSettings('org.gnome.desktop.screensaver');
 
-    page = new Adw.PreferencesPage(); 
+        // Create a preferences page and group
+        let page, group, button;
 
-    //System Preferences
-    group = new Adw.PreferencesGroup({ title: 'System Preferences'});
-    // group.set_description('Update relevant System Preferences');
-    page.add(group);
-    this.addToggle('Automatic Screen Lock',"Disable to prevent session from locking due to inactivity",'lock-enabled',systemSettings,group);
+        page = new Adw.PreferencesPage(); 
 
-    //Extension Preferences
-    group = new Adw.PreferencesGroup({ title: 'Extension Preferences'});
-    // group.set_description('Update Extension Preferences');
-    page.add(group);
-    this.addToggle('Lock session before switching',"Enable to require password when switching back",'lock-screen-on-switch',extensionSettings,group);
-    let fieldOptions = {'loginctl':'loginctl','chvt':'chvt'};
-    this.addCombo('Switch Method','Default `loginctl`. Using `chvt` requires adding the command to sudoers',fieldOptions,'switch-method',extensionSettings,group);
-    this.addToggle('Debug Mode','Enable to generate debug messages in `journalctl -f | grep easy-user-switch`','debug-mode',extensionSettings,group);
+        //System Preferences
+        group = new Adw.PreferencesGroup({ title: 'System Preferences'});
+        // group.set_description('Update relevant System Preferences');
+        page.add(group);
+        this.addToggle('Automatic Screen Lock',"Disable to prevent session from locking due to inactivity",'lock-enabled',systemSettings,group);
 
-    //add empty row to separate Rest Button
-    group = new Adw.PreferencesGroup({ title: ' ' });
-    page.add(group);
+        //Extension Preferences
+        group = new Adw.PreferencesGroup({ title: 'Extension Preferences'});
+        // group.set_description('Update Extension Preferences');
+        page.add(group);
+        this.addToggle('Lock session before switching',"Enable to require password when switching back",'lock-screen-on-switch',extensionSettings,group);
+        let fieldOptions = {'loginctl':'loginctl','chvt':'chvt'};
+        this.addCombo('Switch Method','Default `loginctl`. Using `chvt` requires adding the command to sudoers',fieldOptions,'switch-method',extensionSettings,group);
+        this.addToggle('Debug Mode','Enable to generate debug messages in `journalctl -f | grep easy-user-switch`','debug-mode',extensionSettings,group);
 
-	button = new Gtk.Button({
-		label: `Reset Settings to Defaults`,
-		visible: true
-	});
-	button.connect('clicked',() => this.resetSettings());
-    group.add(button);
+        //add empty row to separate Rest Button
+        group = new Adw.PreferencesGroup({ title: ' ' });
+        page.add(group);
 
-    // Add our page to the window
-    window.add(page);
+        button = new Gtk.Button({
+            label: `Reset Settings to Defaults`,
+            visible: true
+        });
+        button.connect('clicked',() => this.resetSettings());
+        group.add(button);
+
+        // Add our page to the window
+        window.add(page);
+    }
 }
 
 function resetSettings(){

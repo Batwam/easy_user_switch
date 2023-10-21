@@ -1,33 +1,34 @@
-'use strict';
-
-const Main = imports.ui.main;
-const PanelMenu = imports.ui.panelMenu;
-const PopupMenu = imports.ui.popupMenu;
-const {Gio,GLib,GObject,St,Gdm,AccountsService} = imports.gi;
-const Mainloop = imports.mainloop;
-
-const ExtensionUtils = imports.misc.extensionUtils;
-const Me = ExtensionUtils.getCurrentExtension();
-const extensionSettings = ExtensionUtils.getSettings();
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
+import St from 'gi://St';
+import Gdm from 'gi://Gdm';
+import AccountsService from 'gi://AccountsService';
+import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 let indicator = null;
+export default class EasyUserSwitchExtension extends Extension {
+	enable(){
+		indicator = new EasyUserSwitch(this.getSettings());
+		Main.panel.addToStatusArea('easyuserswitch-menu', indicator);//added it so it shows in gdm too
+	}
 
-function enable(){
-	indicator = new EasyUserSwitch();
-	Main.panel.addToStatusArea('easyuserswitch-menu', indicator);//added it so it shows in gdm too
-}
-
-function disable(){
-	indicator._disable();
-	indicator.destroy();
-	indicator = null;
+	disable(){
+		indicator._disable();
+		indicator.destroy();
+		indicator = null;
+	}
 }
 
 var EasyUserSwitch = GObject.registerClass(
 	{ GTypeName: 'EasyUserSwitch' },
 class EasyUserSwitch extends PanelMenu.Button {
-	_init(){
+	_init(settings){
 		super._init(0.0,'EasyUserSwitch',false);
+		this.settings = settings;
 
 		this.box = new St.BoxLayout({ style_class: 'panel-status-menu-box' });
 		this.add_child(this.box);
@@ -44,14 +45,14 @@ class EasyUserSwitch extends PanelMenu.Button {
 	}
 
 	_updateMenu() {
-		const DEBUG_MODE = extensionSettings.get_boolean('debug-mode');
+		const DEBUG_MODE = this.settings.get_boolean('debug-mode');
 
 		if (DEBUG_MODE)
 			log(Date().substring(16,24)+' easy-user-switch/src/extension.js: '+'_updateMenu()');
 
 		this.menu.removeAll();
 
-		this.menu.addAction(_('Settings'), () => ExtensionUtils.openPrefs());
+		this.menu.addAction(_('Settings'), () => this.settings.openPreferences());
 		this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
 		let sessionStatus = this._runShell('loginctl session-status');
@@ -61,7 +62,7 @@ class EasyUserSwitch extends PanelMenu.Button {
 
 		this._switch_user_item = new PopupMenu.PopupMenuItem(_("Login Screen"));
 		this._switch_user_item.connect('activate', () => {
-			if (extensionSettings.get_boolean ('lock-screen-on-switch')){
+			if (this.settings.get_boolean ('lock-screen-on-switch')){
 				this._lockActiveScreen();
 				setTimeout(() => {//allow 500ms to lock before switching
 					Gdm.goto_login_session_sync(null)
@@ -117,7 +118,7 @@ class EasyUserSwitch extends PanelMenu.Button {
 
 				menu_item.connect('activate', () => {
 					this.menu.close();
-					if (extensionSettings.get_boolean ('lock-screen-on-switch')){
+					if (this.settings.get_boolean ('lock-screen-on-switch')){
 						this._lockActiveScreen();
 						setTimeout(() => { //allow 500ms to lock before switching
 							this._switchTTY(item);
@@ -181,7 +182,7 @@ class EasyUserSwitch extends PanelMenu.Button {
 	}
 
 	_lockActiveScreen(){
-		const DEBUG_MODE = extensionSettings.get_boolean ('debug-mode');
+		const DEBUG_MODE = this.settings.get_boolean ('debug-mode');
 		if (DEBUG_MODE)
 			log(Date().substring(16,24)+' easy-user-switch/src/extension.js: locking screen');
 
@@ -190,10 +191,10 @@ class EasyUserSwitch extends PanelMenu.Button {
 	}
 
 	_switchTTY(item){
-		const DEBUG_MODE = extensionSettings.get_boolean ('debug-mode');
+		const DEBUG_MODE = this.settings.get_boolean ('debug-mode');
 		const ttyNumber = item.tty.replace("tty","");//only keep number
 
-		const SWITCH_METHOD = extensionSettings.get_string ('switch-method');
+		const SWITCH_METHOD = this.settings.get_string ('switch-method');
 		if (DEBUG_MODE)
 			log(Date().substring(16,24)+' easy-user-switch/src/extension.js - SWITCH_METHOD: '+SWITCH_METHOD);
 
