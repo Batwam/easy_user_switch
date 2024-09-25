@@ -21,7 +21,7 @@ while getopts 's:-system:c:-compile:d:-debug:h:-help:' flag; do
 			echo -e "-h,--help\t display this help menu"
 			echo -e ""
 			echo -e "OPTIONS"
-			echo -e "-s,--system\t install system wide (run as root)"
+			echo -e "--system\t install system wide (run as root)"
 			echo -e "-c,--compile\t to recompile the extension schema (requires glib-compile-schemas)"
 			echo -e "-d,--debug\t debug mode"
 			exit 0;
