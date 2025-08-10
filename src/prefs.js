@@ -9,12 +9,12 @@ function init() {
 export default class EasyUserSwitchPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window){
         const extensionSettings = this.getSettings();
-        const systemSettings = ExtensionPreferences.getSettings('org.gnome.desktop.screensaver');
+        const systemSettings = new Gio.Settings({ schema: 'org.gnome.desktop.screensaver' });
 
         // Create a preferences page and group
         let page, group, button;
 
-        page = new Adw.PreferencesPage(); 
+        page = new Adw.PreferencesPage();
 
         //System Preferences
         group = new Adw.PreferencesGroup({ title: 'System Preferences'});
@@ -39,69 +39,69 @@ export default class EasyUserSwitchPreferences extends ExtensionPreferences {
             label: `Reset Settings to Defaults`,
             visible: true
         });
-        button.connect('clicked',() => this.resetSettings());
+        button.connect('clicked',() => this.resetSettings(extensionSettings, systemSettings));
         group.add(button);
 
         // Add our page to the window
         window.add(page);
     }
-}
 
-function resetSettings(){
-    systemSettings.reset('lock-enabled');
-    extensionSettings.reset('lock-screen-on-switch');
-    extensionSettings.reset('debug-mode');
-}
+    resetSettings(extensionSettings, systemSettings){
+        systemSettings.reset('lock-enabled');
+        extensionSettings.reset('lock-screen-on-switch');
+        extensionSettings.reset('debug-mode');
+    }
 
-function addEmptyRow(page){
-    const group = new Adw.PreferencesGroup();
-    group.set_title(' ');
-    page.add(group);
-}
+    addEmptyRow(page){
+        const group = new Adw.PreferencesGroup();
+        group.set_title(' ');
+        page.add(group);
+    }
 
-function addToggle(rowTitle,rowSubtitle,rowSettingName,rowSettingLocation,group){
-    let row = new Adw.ActionRow({ title: rowTitle });
-    row.subtitle = rowSubtitle;
-    group.add(row);
+    addToggle(rowTitle,rowSubtitle,rowSettingName,rowSettingLocation,group){
+        let row = new Adw.ActionRow({ title: rowTitle });
+        row.subtitle = rowSubtitle;
+        group.add(row);
 
-    // Create the switch and bind its value to the key
-    let toggle = new Gtk.Switch({
-        active: rowSettingLocation.get_boolean (rowSettingName),
-        valign: Gtk.Align.CENTER,
-    });
-    rowSettingLocation.bind(rowSettingName,toggle,'active',Gio.SettingsBindFlags.DEFAULT);
+        // Create the switch and bind its value to the key
+        let toggle = new Gtk.Switch({
+            active: rowSettingLocation.get_boolean (rowSettingName),
+            valign: Gtk.Align.CENTER,
+        });
+        rowSettingLocation.bind(rowSettingName,toggle,'active',Gio.SettingsBindFlags.DEFAULT);
 
-    // Add the switch to the row
-    row.add_suffix(toggle);
-    row.activatable_widget = toggle;
+        // Add the switch to the row
+        row.add_suffix(toggle);
+        row.activatable_widget = toggle;
 
-    return row
-}
+        return row
+    }
 
-function addCombo(rowTitle,rowSubtitle,options,settingName,settings,group){
-    let row = new Adw.ActionRow({ title: rowTitle });
-    row.subtitle = rowSubtitle;
+    addCombo(rowTitle,rowSubtitle,options,settingName,settings,group){
+        let row = new Adw.ActionRow({ title: rowTitle });
+        row.subtitle = rowSubtitle;
 
-    group.add(row);
+        group.add(row);
 
-    // Create the switch and bind its value to the key
-    let combo = new Gtk.ComboBoxText({
-        valign: Gtk.Align.CENTER,
-        halign: Gtk.Align.END,
-        visible: true
-    });
-    for (let option in options){
-		combo.append(options[option],option);
-	}
-	combo.set_active_id(settings.get_string(settingName));
+        // Create the switch and bind its value to the key
+        let combo = new Gtk.ComboBoxText({
+            valign: Gtk.Align.CENTER,
+            halign: Gtk.Align.END,
+            visible: true
+        });
+        for (let option in options){
+            combo.append(options[option],option);
+        }
+        combo.set_active_id(settings.get_string(settingName));
 
-	combo.connect('changed', () => {
-		settings.set_string(settingName,combo.get_active_id());
-    });
+        combo.connect('changed', () => {
+            settings.set_string(settingName,combo.get_active_id());
+        });
 
-    // Add the switch to the row
-    row.add_suffix(combo);
-    row.activatable_widget = combo;
+        // Add the switch to the row
+        row.add_suffix(combo);
+        row.activatable_widget = combo;
 
-    return row
+        return row
+    }
 }

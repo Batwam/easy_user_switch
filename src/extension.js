@@ -1,6 +1,7 @@
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as OsdWindow from 'resource:///org/gnome/shell/ui/osdWindow.js';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
@@ -12,7 +13,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 let indicator = null;
 export default class EasyUserSwitchExtension extends Extension {
 	enable(){
-		indicator = new EasyUserSwitch(this.getSettings());
+		indicator = new EasyUserSwitch(this.getSettings(), this);
 		Main.panel.addToStatusArea('easyuserswitch-menu', indicator);//added it so it shows in gdm too
 	}
 
@@ -26,16 +27,17 @@ export default class EasyUserSwitchExtension extends Extension {
 var EasyUserSwitch = GObject.registerClass(
 	{ GTypeName: 'EasyUserSwitch' },
 class EasyUserSwitch extends PanelMenu.Button {
-	_init(settings){
+	_init(settings, extension){
 		super._init(0.0,'EasyUserSwitch',false);
 		this.settings = settings;
+		this._extension = extension;
 
 		this.box = new St.BoxLayout({ style_class: 'panel-status-menu-box' });
 		this.add_child(this.box);
-		
-		let icon = new St.Icon({ 
+
+		let icon = new St.Icon({
 			icon_name: 'system-users-symbolic',
-			style_class: 'system-status-icon' 
+			style_class: 'system-status-icon'
 		});
 		this.box.add_child(icon);
 
@@ -52,7 +54,7 @@ class EasyUserSwitch extends PanelMenu.Button {
 
 		this.menu.removeAll();
 
-		this.menu.addAction(_('Settings'), () => this.settings.openPreferences());
+		this.menu.addAction(_('Settings'), () => this._extension.openPreferences());
 		this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
 		let sessionStatus = this._runShell('loginctl session-status');
@@ -84,7 +86,7 @@ class EasyUserSwitch extends PanelMenu.Button {
 			usersList.forEach((element) => {log(Date().substring(16,24)+' easy-user-switch/src/extension.js - user logged in: '+element.get_user_name());});
 
 		//extract loginctl info
-		let loginctl = JSON.parse(this._runShell('loginctl list-sessions -o json'));
+		let loginctl = JSON.parse(this._runShell('loginctl list-sessions --json=short'));
 		loginctl = loginctl.filter( element => element.seat == "seat0"); //only keep graphical users (exclude pihole, ...)
 		let loginctlInfo = loginctl.filter( element => element.user !== activeUser && element.user !== 'gdm'); //list of connected users exlucing current user
 		if (DEBUG_MODE)
@@ -110,7 +112,7 @@ class EasyUserSwitch extends PanelMenu.Button {
 				if (DEBUG_MODE)
 					log(Date().substring(16,24)+' panel-user-switch/src/extension.js: '+item.user+' connected in '+item.tty+' ('+item.session+')');
 
-				let displayName = this._capitalize(item.user);
+				let displayName = item.user;
 				if (DEBUG_MODE) //provide tty info in menu
 					displayName =  displayName +' ('+item.tty+', session '+item.session+')';
 
@@ -132,18 +134,21 @@ class EasyUserSwitch extends PanelMenu.Button {
 		}
 	}
 
-	_runShell(command){ 
+	_runShell(command){
 		//run shell command
 		//https://gjs.guide/guides/gio/subprocesses.html#communicating-with-processes
 		let loop = GLib.MainLoop.new(null, false);
 		let argument = GLib.shell_parse_argv(command)[1];
 		let output = false;
+
+		const DEBUG_MODE = this.settings.get_boolean('debug-mode');
+
 		try {
 			let proc = Gio.Subprocess.new(
 				argument,
 				Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
 			);
-		
+
 			proc.communicate_utf8_async(null, null, (proc, res) => {
 				try {
 					let [, stdout, stderr] = proc.communicate_utf8_finish(res);
@@ -204,7 +209,7 @@ class EasyUserSwitch extends PanelMenu.Button {
 					log(Date().substring(16,24)+' easy-user-switch/src/extension.js - chvt: '+item.tty);
 
 				let output = this._runShell('sudo chvt '+ttyNumber); //switch to associated tty
-				
+
 				if (!output){
 					if (DEBUG_MODE)
 						log(Date().substring(16,24)+' easy-user-switch/src/extension.js: '+'no output, display OSD warning');
@@ -227,7 +232,6 @@ class EasyUserSwitch extends PanelMenu.Button {
 	_showOSD(osdIcon,osdText){
 		const icon = Gio.Icon.new_for_string(osdIcon);
 		const monitor = global.display.get_current_monitor(); //identify current monitor for OSD
-		const OsdWindow = imports.ui.osdWindow;
 		const defaultOsdTimeout = OsdWindow.HIDE_TIMEOUT;
 		OsdWindow.HIDE_TIMEOUT = Math.clamp(1500,40 * osdText.length,5000); //text length dependant OSD timeout duration to allow time to read
 		Main.osdWindowManager.show(monitor, icon, osdText); //display error
