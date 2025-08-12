@@ -7,10 +7,10 @@ LOCAL_DIR="$HOME/.local/share/gnome-shell/extensions/$extension"
 SYSTEM_DIR="/usr/share/gnome-shell/extensions/$extension"
 
 while getopts 's:-system:c:-compile:d:-debug:h:-help:' flag; do
-    case "${flag}" in
-        s | --system)
+	case "${flag}" in
+		s | --system)
 			system_install=true;;
-        c | --compile)
+		c | --compile)
 			compile_schema=true;;
 		d | --debug)
 			debug_mode=true;;
@@ -25,14 +25,15 @@ while getopts 's:-system:c:-compile:d:-debug:h:-help:' flag; do
 			echo -e "-c,--compile\t to recompile the extension schema (requires glib-compile-schemas)"
 			echo -e "-d,--debug\t debug mode"
 			exit 0;
-    esac
+	esac
 done
 
 #option for system wide install
 INSTALL_DIR="$LOCAL_DIR"
 if [ "$system_install" == true ]; then
 	if [ "$EUID" -ne 0 ]; then
-		echo "Please run as root"
+		echo "Please run as root to install system wide."
+		echo "sudo $0 --system"
 		exit
 	fi
 	echo "installing the extension system wide..."
@@ -72,9 +73,7 @@ gnome-extensions enable $extension
 
 if [ "$XDG_SESSION_TYPE" = "x11" ]; then
 	printf "\n\e[32mAll files copied. \nReloading the gnome-shell (shortcut Alt + F2, r) to load the extension.\n\n\e[0m"
-	#killall -3 gnome-shell
-	
-	gnome-extensions enable $extension
+	gnome-extensions enable $extension || echo -e "\e[31mFailed to enable the extension. Please activate after reloading the session.\e[0m"
 else
 	printf "\n\e[32mAll files copied. \nPlease log out and log back in again to load the extension.\n\n\e[0m"
 fi
