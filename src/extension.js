@@ -182,9 +182,6 @@ class EasyUserSwitch extends PanelMenu.Button {
 
 		this.remove_child(this.box);
 	}
-	_capitalize(string) {
-		return string.charAt(0).toUpperCase() + string.slice(1);
-	}
 
 	_lockActiveScreen(){
 		const DEBUG_MODE = this.settings.get_boolean ('debug-mode');
