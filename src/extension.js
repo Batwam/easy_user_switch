@@ -7,7 +7,6 @@ import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Gdm from 'gi://Gdm';
-import AccountsService from 'gi://AccountsService';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 let indicator = null;
@@ -41,9 +40,12 @@ class EasyUserSwitch extends PanelMenu.Button {
 		});
 		this.box.add_child(icon);
 
-		this.connect('button-press-event',(_a, event) => this._updateMenu()); //generate menu on click
+		this.menu.connect('open-state-changed', (_menu, open) => {
+			if (open)
+				this._updateMenu();
+		}); //generate menu on open
 
-		Main.panel.addToStatusArea('EasyUserSwitch',this,0,'right'); //position,panel_side
+		this._updateMenu(); //populate menu before first open
 	}
 
 	_updateMenu() {
@@ -78,36 +80,27 @@ class EasyUserSwitch extends PanelMenu.Button {
 		// identify current user
 		let activeUser = GLib.get_user_name().toString();
 
-		//get list of logged in users
-		const userManager = AccountsService.UserManager.get_default();
-		let usersList = userManager.list_users();
-		usersList = usersList.filter( element => element.get_user_name() !== activeUser && element.is_logged_in());
-		if (DEBUG_MODE)
-			usersList.forEach((element) => {log(Date().substring(16,24)+' easy-user-switch/src/extension.js - user logged in: '+element.get_user_name());});
-
 		//extract loginctl info
 		let loginctl = JSON.parse(this._runShell('loginctl list-sessions --json=short'));
-		loginctl = loginctl.filter( element => element.seat == "seat0"); //only keep graphical users (exclude pihole, ...)
-		let loginctlInfo = loginctl.filter( element => element.user !== activeUser && element.user !== 'gdm'); //list of connected users exlucing current user
+		loginctl = loginctl.filter( element => element.seat == "seat0" && element.class == "user" && element.tty); //only keep switchable graphical users
+		let loginctlInfo = [];
+		loginctl.forEach((element) => { //keep one switchable session per user
+			if (element.user !== activeUser && element.user !== 'gdm'){
+				loginctlInfo = loginctlInfo.filter((item) => item.user != element.user);
+				loginctlInfo.push(element);
+			}
+		});
 		if (DEBUG_MODE)
 			log(Date().substring(16,24)+' easy-user-switch/src/extension.js - loginctlInfo: '+JSON.stringify(loginctlInfo));
 
 		//identify tty for each user
-		if(Object.keys(usersList).length > 0){
+		if(Object.keys(loginctlInfo).length > 0){
 			this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-			usersList.forEach((activeUser) => {
-				const username = activeUser.get_user_name();
+			loginctlInfo.forEach((item) => {
+				const username = item.user;
 				if (DEBUG_MODE)
 					log(Date().substring(16,24)+' easy-user-switch/src/extension.js - identifying tty for: '+username);
-
-				let item = [];
-				// item = loginctlInfo.findLast((element) => element.user == username); //doesnt' seem to work
-				loginctlInfo.forEach((element) => { //will pick the last match in case of user listed multiple times
-					if (element.user == username){
-						item = element;
-					}
-				});
 
 				if (DEBUG_MODE)
 					log(Date().substring(16,24)+' panel-user-switch/src/extension.js: '+item.user+' connected in '+item.tty+' ('+item.session+')');
