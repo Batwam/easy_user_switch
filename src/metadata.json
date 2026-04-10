@@ -1,8 +1,8 @@
-{"shell-version": [ "47", "48", "49" ],
+{"shell-version": [ "49", "50" ],
  "uuid": "easyuserswitch@batwam.corp",
  "name": "Easy User Switch",
  "url": "https://github.com/Batwam/easy_user_switch",
- "version": "2",
+ "version": "3",
  "description": "Switch between connected users from Gnome panel",
  "session-modes": ["user", "unlock-dialog"],
  "settings-schema": "org.gnome.shell.extensions.easy-user-switch"

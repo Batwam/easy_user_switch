@@ -3,18 +3,25 @@
 cd "$(dirname "$0")/src"
 # automatically generate name from metadata info
 extension=$(cat metadata.json | grep uuid | awk '{print $2}' | tr -d '",')
+if [ -z "$extension" ]; then
+	echo "Error: extension UUID is empty. Aborting."
+	exit 1
+else
+	echo "Extension UUID: $extension"
+fi
+
 LOCAL_DIR="$HOME/.local/share/gnome-shell/extensions/$extension"
 SYSTEM_DIR="/usr/share/gnome-shell/extensions/$extension"
 
-while getopts 's:-system:c:-compile:d:-debug:h:-help:' flag; do
-	case "${flag}" in
-		s | --system)
+while [ $# -gt 0 ] ; do
+	case "$1" in
+		-s | --system)
 			system_install=true;;
-		c | --compile)
+		-c | --compile)
 			compile_schema=true;;
-		d | --debug)
+		-d | --debug)
 			debug_mode=true;;
-		h | --help)
+		-h | --help)
 			echo "Usage"
 			echo -e "\t ./auto_install.sh [options]\n"
 			echo -e "META OPTIONS"
@@ -24,8 +31,12 @@ while getopts 's:-system:c:-compile:d:-debug:h:-help:' flag; do
 			echo -e "--system\t install system wide (run as root)"
 			echo -e "-c,--compile\t to recompile the extension schema (requires glib-compile-schemas)"
 			echo -e "-d,--debug\t debug mode"
-			exit 0;
+			exit 0;;
+		*)
+			echo "Unknown option: $1"
+			echo "Use -h or --help for usage information.";;
 	esac
+	shift
 done
 
 #option for system wide install
@@ -49,7 +60,7 @@ fi
 rm -rf "$INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
 
-printf "\e[32mCopying extension files to target directory:\n\e[0m"
+echo -e "\e[32mCopying extension files to target directory:\e[0m"
 cp -Rv ./* $INSTALL_DIR
 
 #go back to original folder
