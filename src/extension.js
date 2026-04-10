@@ -222,10 +222,7 @@ class EasyUserSwitch extends PanelMenu.Button {
 	_showOSD(osdIcon,osdText){
 		const icon = Gio.Icon.new_for_string(osdIcon);
 		const monitor = global.display.get_current_monitor(); //identify current monitor for OSD
-		const defaultOsdTimeout = OsdWindow.HIDE_TIMEOUT;
-		OsdWindow.HIDE_TIMEOUT = Math.clamp(1500,40 * osdText.length,5000); //text length dependant OSD timeout duration to allow time to read
-		Main.osdWindowManager.show(monitor, icon, osdText); //display error
-		OsdWindow.HIDE_TIMEOUT = defaultOsdTimeout; //reset OSD timeout duration to default
+		Main.osdWindowManager.showOne(monitor, icon, osdText);
 	}
 });
 
