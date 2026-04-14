@@ -9,19 +9,6 @@ import Gdm from 'gi://Gdm';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 let indicator = null;
-export default class EasyUserSwitchExtension extends Extension {
-	enable(){
-		indicator = new EasyUserSwitch(this.getSettings(), this);
-		Main.panel.addToStatusArea('easyuserswitch-menu', indicator);//added it so it shows in gdm too
-	}
-
-	disable(){
-		indicator._disable();
-		indicator.destroy();
-		indicator = null;
-	}
-}
-
 const EasyUserSwitch = GObject.registerClass(
 	{ GTypeName: 'EasyUserSwitch' },
 class EasyUserSwitch extends PanelMenu.Button {
@@ -192,3 +179,16 @@ class EasyUserSwitch extends PanelMenu.Button {
 		this._runShell('loginctl activate '+item.session); //switch to associated tty
 	}
 });
+
+export default class EasyUserSwitchExtension extends Extension {
+	enable(){
+		indicator = new EasyUserSwitch(this.getSettings(), this);
+		Main.panel.addToStatusArea('easyuserswitch-menu', indicator);//added it so it shows in gdm too
+	}
+
+	disable(){
+		indicator._disable();
+		indicator.destroy();
+		indicator = null;
+	}
+}
