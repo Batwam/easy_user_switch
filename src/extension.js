@@ -136,12 +136,12 @@ class EasyUserSwitch extends PanelMenu.Button {
 		const DEBUG_MODE = this.settings.get_boolean('debug-mode');
 
 		try {
-			let proc = Gio.Subprocess.new(
+			let subprocess = Gio.Subprocess.new(
 				argument,
 				Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
 			);
 
-			proc.communicate_utf8_async(null, null, (proc, res) => {
+			subprocess.communicate_utf8_async(null, null, (proc, res) => {
 				try {
 					let [, stdout, stderr] = proc.communicate_utf8_finish(res);
 					if (proc.get_successful()) {
