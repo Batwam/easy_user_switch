@@ -8,6 +8,8 @@ import St from 'gi://St';
 import Gdm from 'gi://Gdm';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
+Gio._promisify(Gio.Subprocess.prototype, 'communicate_utf8_async');
+
 let indicator = null;
 const EasyUserSwitch = GObject.registerClass(
 	{ GTypeName: 'EasyUserSwitch' },
@@ -28,13 +30,13 @@ class EasyUserSwitch extends PanelMenu.Button {
 
 		this.menu.connect('open-state-changed', (_menu, open) => {
 			if (open)
-				this._updateMenu();
+				this._updateMenu().catch(err => this._logCommandError('Failed to update menu', err));
 		}); //generate menu on open
 
-		this._updateMenu(); //populate menu before first open
+		this._updateMenu().catch(err => this._logCommandError('Failed to initialize menu', err)); //populate menu before first open
 	}
 
-	_updateMenu() {
+	async _updateMenu() {
 		const DEBUG_MODE = this.settings.get_boolean('debug-mode');
 
 		if (DEBUG_MODE)
@@ -45,7 +47,7 @@ class EasyUserSwitch extends PanelMenu.Button {
 		this.menu.addAction(_('Settings'), () => this._extension.openPreferences());
 		this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-		let sessionStatus = this._runShell('loginctl session-status');
+		let sessionStatus = await this._runCommand(['loginctl', 'session-status']);
 		this._activeSession = sessionStatus.substring(0,sessionStatus.indexOf(' '));//keep number before fors space
 		if (DEBUG_MODE)
 			console.log(Date().substring(16,24)+' easy-user-switch/src/extension.js - loginctlInfo - Active session: '+JSON.stringify(this._activeSession));
@@ -67,7 +69,7 @@ class EasyUserSwitch extends PanelMenu.Button {
 		let activeUser = GLib.get_user_name().toString();
 
 		//extract loginctl info
-		let loginctl = JSON.parse(this._runShell('loginctl list-sessions --json=short'));
+		let loginctl = JSON.parse(await this._runCommand(['loginctl', 'list-sessions', '--json=short']));
 		loginctl = loginctl.filter( element => element.seat === "seat0" && element.class === "user" && element.tty); //only keep switchable graphical users
 		let loginctlInfo = [];
 		loginctl.forEach((element) => { //keep one switchable session per user
@@ -102,54 +104,47 @@ class EasyUserSwitch extends PanelMenu.Button {
 					if (this.settings.get_boolean ('lock-screen-on-switch')){
 						this._lockActiveScreen();
 						setTimeout(() => { //allow 500ms to lock before switching
-							this._switchTTY(item);
+							this._switchTTY(item).catch(err => this._logCommandError('Failed to activate session', err));
 						}, 500);
 					}
 					else
-						this._switchTTY(item);
+						this._switchTTY(item).catch(err => this._logCommandError('Failed to activate session', err));
 				});
 				this.menu.addMenuItem(menu_item);
 			});
 		}
 	}
 
-	_runShell(command){
-		//run shell command
-		//https://gjs.guide/guides/gio/subprocesses.html#communicating-with-processes
-		let loop = GLib.MainLoop.new(null, false);
-		let argument = GLib.shell_parse_argv(command)[1];
-		let output = false;
+	async _runCommand(argv, cancellable = null){
+		let cancelId = 0;
+		const flags = Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE;
+		const subprocess = new Gio.Subprocess({argv, flags});
 
-		const DEBUG_MODE = this.settings.get_boolean('debug-mode');
+		subprocess.init(cancellable);
+
+		if (cancellable instanceof Gio.Cancellable)
+			cancelId = cancellable.connect(() => subprocess.force_exit());
 
 		try {
-			let subprocess = Gio.Subprocess.new(
-				argument,
-				Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
-			);
+			const [stdout, stderr] = await subprocess.communicate_utf8_async(null, null);
+			const status = subprocess.get_exit_status();
 
-			subprocess.communicate_utf8_async(null, null, (proc, res) => {
-				try {
-					let [, stdout, stderr] = proc.communicate_utf8_finish(res);
-					if (proc.get_successful()) {
-						output = stdout;
-					} else {
-						throw new Error(stderr);
-					}
-				} catch (err) {
-					if (DEBUG_MODE)
-						console.log(Date().substring(16,24)+' easy-user-switch/src/extension.js - _runShell() communicate error: '+err);
+			if (status !== 0) {
+				throw new Gio.IOErrorEnum({
+					code: Gio.IOErrorEnum.FAILED,
+					message: stderr ? stderr.trim() : `Command '${argv}' failed with exit code ${status}`,
+				});
+			}
 
-				} finally {
-					loop.quit();
-				}
-			});
-		} catch (err) {
-			if (DEBUG_MODE)
-				console.log(Date().substring(16,24)+' easy-user-switch/src/extension.js - _runShell() general error: '+err);
+			return stdout.trim();
+		} finally {
+			if (cancelId > 0)
+				cancellable.disconnect(cancelId);
 		}
-		loop.run();
-		return output;
+	}
+
+	_logCommandError(context, err){
+		console.error(`easy-user-switch: ${context}`, err);
 	}
 
 	_disable(){
@@ -171,12 +166,12 @@ class EasyUserSwitch extends PanelMenu.Button {
 		Main.screenShield.lock(true); //lock screen
 	}
 
-	_switchTTY(item){
+	async _switchTTY(item){
 		const DEBUG_MODE = this.settings.get_boolean ('debug-mode');
 		if (DEBUG_MODE)
 			console.log(Date().substring(16,24)+' easy-user-switch/src/extension.js - loginctl to '+item.user+' (session '+item.session+')');
 
-		this._runShell('loginctl activate '+item.session); //switch to associated tty
+		await this._runCommand(['loginctl', 'activate', item.session]); //switch to associated tty
 	}
 });
 
