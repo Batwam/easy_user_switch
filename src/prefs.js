@@ -3,9 +3,6 @@ import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-function init() {
-}
-
 export default class EasyUserSwitchPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window){
         const extensionSettings = this.getSettings();
