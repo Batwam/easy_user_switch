@@ -22,7 +22,7 @@ export default class EasyUserSwitchExtension extends Extension {
 	}
 }
 
-var EasyUserSwitch = GObject.registerClass(
+const EasyUserSwitch = GObject.registerClass(
 	{ GTypeName: 'EasyUserSwitch' },
 class EasyUserSwitch extends PanelMenu.Button {
 	_init(settings, extension){
