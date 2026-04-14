@@ -81,11 +81,11 @@ class EasyUserSwitch extends PanelMenu.Button {
 
 		//extract loginctl info
 		let loginctl = JSON.parse(this._runShell('loginctl list-sessions --json=short'));
-		loginctl = loginctl.filter( element => element.seat == "seat0" && element.class == "user" && element.tty); //only keep switchable graphical users
+		loginctl = loginctl.filter( element => element.seat === "seat0" && element.class === "user" && element.tty); //only keep switchable graphical users
 		let loginctlInfo = [];
 		loginctl.forEach((element) => { //keep one switchable session per user
 			if (element.user !== activeUser && element.user !== 'gdm'){
-				loginctlInfo = loginctlInfo.filter((item) => item.user != element.user);
+				loginctlInfo = loginctlInfo.filter((item) => item.user !== element.user);
 				loginctlInfo.push(element);
 			}
 		});
