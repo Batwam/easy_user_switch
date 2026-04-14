@@ -3,10 +3,7 @@ Gnome-shell extension to easily switch between **connected** users using an icon
 
 Note that is a user is not logged in, its name will not appear. You can then use the "Login Screen" option to go to the login screen and log this user in.
 
-This is loosely inspired by https://github.com/HROMANO/fastuserswitch in terms of functionality but uses an alternative method by simulating Ctrl+Alt+Fx to switch Virtual Terminal by running the `loginctl` command (or `chvt` as optional alternative).
-
-Alternatively, it can run the `chvt` command but this requires the `chvt` command to be added to the sudoers file (See preferenced to change method). This can be achieved by creating a file in your `etc/sudoers.d` folder and include the list of users who require using `chvt` as follows:
-`user1,user2,user3  ALL=(ALL:ALL) NOPASSWD: /usr/bin/chvt`
+This is loosely inspired by https://github.com/HROMANO/fastuserswitch in terms of functionality but switches Virtual Terminals by activating the target session through `loginctl`.
 
 # Install
 1. To install the extension locally (ie ~/.local/share/gnome-shell/extensions/): `./auto_install.sh`

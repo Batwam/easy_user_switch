@@ -5,9 +5,6 @@
     <key name="lock-screen-on-switch" type="b">
       <default>false</default>
     </key>
-    <key name="switch-method" type="s">
-      <default>'loginctl'</default>
-    </key>
     <key name="debug-mode" type="b">
       <default>false</default>
     </key>

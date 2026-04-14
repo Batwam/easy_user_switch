@@ -1,7 +1,6 @@
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
-import * as OsdWindow from 'resource:///org/gnome/shell/ui/osdWindow.js';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
@@ -187,42 +186,9 @@ class EasyUserSwitch extends PanelMenu.Button {
 
 	_switchTTY(item){
 		const DEBUG_MODE = this.settings.get_boolean ('debug-mode');
-		const ttyNumber = item.tty.replace("tty","");//only keep number
-
-		const SWITCH_METHOD = this.settings.get_string ('switch-method');
 		if (DEBUG_MODE)
-			log(Date().substring(16,24)+' easy-user-switch/src/extension.js - SWITCH_METHOD: '+SWITCH_METHOD);
+			log(Date().substring(16,24)+' easy-user-switch/src/extension.js - loginctl to '+item.user+' (session '+item.session+')');
 
-		switch(SWITCH_METHOD){
-			case 'chvt':
-				if (DEBUG_MODE)
-					log(Date().substring(16,24)+' easy-user-switch/src/extension.js - chvt: '+item.tty);
-
-				let output = this._runShell('sudo chvt '+ttyNumber); //switch to associated tty
-
-				if (!output){
-					if (DEBUG_MODE)
-						log(Date().substring(16,24)+' easy-user-switch/src/extension.js: '+'no output, display OSD warning');
-
-					const activeUser = GLib.get_user_name().toString();
-					const osdText = 'Please add the following to the /etc/sudoers file:\n'+activeUser+' ALL=(ALL:ALL) NOPASSWD: /usr/bin/chvt*';
-					this._showOSD('error-symbolic',osdText);
-				}
-				break;
-
-			case 'loginctl':
-					if (DEBUG_MODE)
-						log(Date().substring(16,24)+' easy-user-switch/src/extension.js - loginctl to '+item.user+' (session '+item.session+')');
-
-					this._runShell('loginctl activate '+item.session); //switch to associated tty
-					break;
-		}
-	}
-
-	_showOSD(osdIcon,osdText){
-		const icon = Gio.Icon.new_for_string(osdIcon);
-		const monitor = global.display.get_current_monitor(); //identify current monitor for OSD
-		Main.osdWindowManager.showOne(monitor, icon, osdText);
+		this._runShell('loginctl activate '+item.session); //switch to associated tty
 	}
 });
-
