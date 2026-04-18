@@ -182,6 +182,11 @@ export default class EasyUserSwitchExtension extends Extension {
 	}
 
 	disable(){
+		// Session-mode changes tear down the visible indicator here, but
+		// lock-before-switch intentionally leaves a delayed handoff in flight.
+		// That flow locks the current session first, then completes the switch to
+		// GDM or another user from a 500ms timeout, so the extension still needs to
+		// run in unlock-dialog even though its panel UI is removed during disable().
 		indicator._disable();
 		indicator.destroy();
 		indicator = null;
