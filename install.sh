@@ -44,7 +44,7 @@ INSTALL_DIR="$LOCAL_DIR"
 if [ "$system_install" == true ]; then
 	if [ "$EUID" -ne 0 ]; then
 		echo "Please run as root to install system wide."
-		echo "sudo $0 --system"
+		echo "sudo ./$0 --system"
 		exit
 	fi
 	echo "installing the extension system wide..."
