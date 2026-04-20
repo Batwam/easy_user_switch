@@ -37,10 +37,7 @@ class EasyUserSwitch extends PanelMenu.Button {
 	}
 
 	async _updateMenu() {
-		const DEBUG_MODE = this.settings.get_boolean('debug-mode');
-
-		if (DEBUG_MODE)
-			console.log(Date().substring(16,24)+' easy-user-switch/src/extension.js: '+'_updateMenu()');
+		this._logCommandDebug('_updateMenu()');
 
 		this.menu.removeAll();
 
@@ -49,8 +46,7 @@ class EasyUserSwitch extends PanelMenu.Button {
 
 		let sessionStatus = await this._runCommand(['loginctl', 'session-status']);
 		this._activeSession = sessionStatus.substring(0,sessionStatus.indexOf(' '));//keep number before fors space
-		if (DEBUG_MODE)
-			console.log(Date().substring(16,24)+' easy-user-switch/src/extension.js - loginctlInfo - Active session: '+JSON.stringify(this._activeSession));
+		this._logCommandDebug('loginctlInfo - Active session: ' + JSON.stringify(this._activeSession));
 
 		this._switch_user_item = new PopupMenu.PopupMenuItem(_("Login Screen"));
 		this._switch_user_item.connect('activate', () => {
@@ -78,8 +74,8 @@ class EasyUserSwitch extends PanelMenu.Button {
 				loginctlInfo.push(element);
 			}
 		});
-		if (DEBUG_MODE)
-			console.log(Date().substring(16,24)+' easy-user-switch/src/extension.js - loginctlInfo: '+JSON.stringify(loginctlInfo));
+		
+		this._logCommandDebug('loginctlInfo: '+JSON.stringify(loginctlInfo));
 
 		//identify tty for each user
 		if(Object.keys(loginctlInfo).length > 0){
@@ -87,15 +83,11 @@ class EasyUserSwitch extends PanelMenu.Button {
 
 			loginctlInfo.forEach((item) => {
 				const username = item.user;
-				if (DEBUG_MODE)
-					console.log(Date().substring(16,24)+' easy-user-switch/src/extension.js - identifying tty for: '+username);
-
-				if (DEBUG_MODE)
-					console.log(Date().substring(16,24)+' panel-user-switch/src/extension.js: '+item.user+' connected in '+item.tty+' ('+item.session+')');
+				this._logCommandDebug('identifying tty for: '+username);
+				this._logCommandDebug(item.user+' connected in '+item.tty+' ('+item.session+')');
 
 				let displayName = item.user;
-				if (DEBUG_MODE) //provide tty info in menu
-					displayName =  displayName +' ('+item.tty+', session '+item.session+')';
+				displayName =  displayName +' ('+item.tty+', session '+item.session+')';
 
 				let menu_item = new PopupMenu.PopupMenuItem(displayName);
 
@@ -147,6 +139,11 @@ class EasyUserSwitch extends PanelMenu.Button {
 		console.error(`easy-user-switch: ${context}`, err);
 	}
 
+	_logCommandDebug(context) {
+		if (this.settings.get_boolean('debug-mode'))
+			console.log(`easy-user-switch: ${context}`);
+	}
+
 	_disable(){
 		if(this.icon)
 			this.box.remove_child(this.icon);
@@ -158,18 +155,14 @@ class EasyUserSwitch extends PanelMenu.Button {
 	}
 
 	_lockActiveScreen(){
-		const DEBUG_MODE = this.settings.get_boolean ('debug-mode');
-		if (DEBUG_MODE)
-			console.log(Date().substring(16,24)+' easy-user-switch/src/extension.js: locking screen');
+		this._logCommandDebug('locking screen');
 
 		Main.overview.hide(); //leave overview mode first if activated
 		Main.screenShield.lock(true); //lock screen
 	}
 
 	async _switchTTY(item){
-		const DEBUG_MODE = this.settings.get_boolean ('debug-mode');
-		if (DEBUG_MODE)
-			console.log(Date().substring(16,24)+' easy-user-switch/src/extension.js - loginctl to '+item.user+' (session '+item.session+')');
+		this._logCommandDebug('loginctl to '+item.user+' (session '+item.session+')');
 
 		await this._runCommand(['loginctl', 'activate', item.session]); //switch to associated tty
 	}
