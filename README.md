@@ -16,7 +16,7 @@ run `sudo ./install.sh --system`
 
 # Testing and Develipment
 - Open the logs directly for testing purposes (recommended to use Debug Mode on in the Preferences):
-run `./install.sh --debug` or run directly `journalctl --follow -o cat /usr/bin/gnome-shell GNOME_SHELL_EXTENSION_UUID="easyuserswitch@batwam.corp"`
+run `./install.sh --debug`.Alternatively, run directly `journalctl --follow -o cat /usr/bin/gnome-shell GNOME_SHELL_EXTENSION_UUID="easyuserswitch@batwam.corp"` or  `journalctl -f | grep easy-user-switch`
 - To recompile the schemas (regenerates gscemas.compiled if the xml file is being modifiled)
 run `./install.sh --compile`
 
@@ -34,6 +34,6 @@ Restart gnome-shell, using <kbd>Alt</kbd>+<kbd>F2</kbd> then `r`+<kbd>Enter</kbd
 
 ## Extras
 Recommended system settings can be set in the Settings panel for the extension accessible through right/left click on the icon or your extension manager. This includes:
-- An option is included to Enable/Disable the screen lock due to inactivity. This is a built-in gnome option which is only included in the Preferences for convenience.
-- An option to lock the session when switching. If disabled, the user can easily switch between sessions, however, this also means that the second user can switch back to the first user's session as it will not be locked. Consider your own privacy/security objectives when activating this.
+- An option is included to Enable/Disable the screen lock due to inactivity (Default = `true`). This is a built-in gnome option which is only included in the Preferences for convenience. Disabling it allows to be able to swith back and forth between session without requiring password (assuming automatic locking is disabled)
+- An option to lock the session when switching (Default = `false`). If enabled, the session will be locked before switching and requie password to switching back to the original session.
 - An option to turn on DEBUG mode this will add debug information in the console (see above regarding `--debug` option)
