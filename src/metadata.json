@@ -2,7 +2,7 @@
  "uuid": "easyuserswitch@batwam.corp",
  "name": "Easy User Switch",
  "url": "https://github.com/Batwam/easy_user_switch",
- "version": "3",
+ "gettext-domain": "easyuserswitch@batwam.corp",
  "description": "Switch between connected users from Gnome panel",
  "session-modes": ["user", "unlock-dialog"],
  "settings-schema": "org.gnome.shell.extensions.easy-user-switch"

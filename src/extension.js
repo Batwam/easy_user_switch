@@ -1,29 +1,17 @@
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
-import * as OsdWindow from 'resource:///org/gnome/shell/ui/osdWindow.js';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Gdm from 'gi://Gdm';
-import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+
+Gio._promisify(Gio.Subprocess.prototype, 'communicate_utf8_async');
 
 let indicator = null;
-export default class EasyUserSwitchExtension extends Extension {
-	enable(){
-		indicator = new EasyUserSwitch(this.getSettings(), this);
-		Main.panel.addToStatusArea('easyuserswitch-menu', indicator);//added it so it shows in gdm too
-	}
-
-	disable(){
-		indicator._disable();
-		indicator.destroy();
-		indicator = null;
-	}
-}
-
-var EasyUserSwitch = GObject.registerClass(
+const EasyUserSwitch = GObject.registerClass(
 	{ GTypeName: 'EasyUserSwitch' },
 class EasyUserSwitch extends PanelMenu.Button {
 	_init(settings, extension){
@@ -42,27 +30,23 @@ class EasyUserSwitch extends PanelMenu.Button {
 
 		this.menu.connect('open-state-changed', (_menu, open) => {
 			if (open)
-				this._updateMenu();
+				this._updateMenu().catch(err => this._logCommandError('Failed to update menu', err));
 		}); //generate menu on open
 
-		this._updateMenu(); //populate menu before first open
+		this._updateMenu().catch(err => this._logCommandError('Failed to initialize menu', err)); //populate menu before first open
 	}
 
-	_updateMenu() {
-		const DEBUG_MODE = this.settings.get_boolean('debug-mode');
-
-		if (DEBUG_MODE)
-			log(Date().substring(16,24)+' easy-user-switch/src/extension.js: '+'_updateMenu()');
+	async _updateMenu() {
+		this._logCommandDebug('_updateMenu()');
 
 		this.menu.removeAll();
 
 		this.menu.addAction(_('Settings'), () => this._extension.openPreferences());
 		this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-		let sessionStatus = this._runShell('loginctl session-status');
+		let sessionStatus = await this._runCommand(['loginctl', 'session-status']);
 		this._activeSession = sessionStatus.substring(0,sessionStatus.indexOf(' '));//keep number before fors space
-		if (DEBUG_MODE)
-			log(Date().substring(16,24)+' easy-user-switch/src/extension.js - loginctlInfo - Active session: '+JSON.stringify(this._activeSession));
+		this._logCommandDebug('loginctlInfo - Active session: ' + JSON.stringify(this._activeSession));
 
 		this._switch_user_item = new PopupMenu.PopupMenuItem(_("Login Screen"));
 		this._switch_user_item.connect('activate', () => {
@@ -81,17 +65,17 @@ class EasyUserSwitch extends PanelMenu.Button {
 		let activeUser = GLib.get_user_name().toString();
 
 		//extract loginctl info
-		let loginctl = JSON.parse(this._runShell('loginctl list-sessions --json=short'));
-		loginctl = loginctl.filter( element => element.seat == "seat0" && element.class == "user" && element.tty); //only keep switchable graphical users
+		let loginctl = JSON.parse(await this._runCommand(['loginctl', 'list-sessions', '--json=short']));
+		loginctl = loginctl.filter( element => element.seat === "seat0" && element.class === "user" && element.tty); //only keep switchable graphical users
 		let loginctlInfo = [];
 		loginctl.forEach((element) => { //keep one switchable session per user
 			if (element.user !== activeUser && element.user !== 'gdm'){
-				loginctlInfo = loginctlInfo.filter((item) => item.user != element.user);
+				loginctlInfo = loginctlInfo.filter((item) => item.user !== element.user);
 				loginctlInfo.push(element);
 			}
 		});
-		if (DEBUG_MODE)
-			log(Date().substring(16,24)+' easy-user-switch/src/extension.js - loginctlInfo: '+JSON.stringify(loginctlInfo));
+		
+		this._logCommandDebug('loginctlInfo: '+JSON.stringify(loginctlInfo));
 
 		//identify tty for each user
 		if(Object.keys(loginctlInfo).length > 0){
@@ -99,15 +83,11 @@ class EasyUserSwitch extends PanelMenu.Button {
 
 			loginctlInfo.forEach((item) => {
 				const username = item.user;
-				if (DEBUG_MODE)
-					log(Date().substring(16,24)+' easy-user-switch/src/extension.js - identifying tty for: '+username);
-
-				if (DEBUG_MODE)
-					log(Date().substring(16,24)+' panel-user-switch/src/extension.js: '+item.user+' connected in '+item.tty+' ('+item.session+')');
+				this._logCommandDebug('identifying tty for: '+username);
+				this._logCommandDebug(item.user+' connected in '+item.tty+' ('+item.session+')');
 
 				let displayName = item.user;
-				if (DEBUG_MODE) //provide tty info in menu
-					displayName =  displayName +' ('+item.tty+', session '+item.session+')';
+				displayName =  displayName +' ('+item.tty+', session '+item.session+')';
 
 				let menu_item = new PopupMenu.PopupMenuItem(displayName);
 
@@ -116,54 +96,52 @@ class EasyUserSwitch extends PanelMenu.Button {
 					if (this.settings.get_boolean ('lock-screen-on-switch')){
 						this._lockActiveScreen();
 						setTimeout(() => { //allow 500ms to lock before switching
-							this._switchTTY(item);
+							this._switchTTY(item).catch(err => this._logCommandError('Failed to activate session', err));
 						}, 500);
 					}
 					else
-						this._switchTTY(item);
+						this._switchTTY(item).catch(err => this._logCommandError('Failed to activate session', err));
 				});
 				this.menu.addMenuItem(menu_item);
 			});
 		}
 	}
 
-	_runShell(command){
-		//run shell command
-		//https://gjs.guide/guides/gio/subprocesses.html#communicating-with-processes
-		let loop = GLib.MainLoop.new(null, false);
-		let argument = GLib.shell_parse_argv(command)[1];
-		let output = false;
+	async _runCommand(argv, cancellable = null){
+		let cancelId = 0;
+		const flags = Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE;
+		const subprocess = new Gio.Subprocess({argv, flags});
 
-		const DEBUG_MODE = this.settings.get_boolean('debug-mode');
+		subprocess.init(cancellable);
+
+		if (cancellable instanceof Gio.Cancellable)
+			cancelId = cancellable.connect(() => subprocess.force_exit());
 
 		try {
-			let proc = Gio.Subprocess.new(
-				argument,
-				Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
-			);
+			const [stdout, stderr] = await subprocess.communicate_utf8_async(null, null);
+			const status = subprocess.get_exit_status();
 
-			proc.communicate_utf8_async(null, null, (proc, res) => {
-				try {
-					let [, stdout, stderr] = proc.communicate_utf8_finish(res);
-					if (proc.get_successful()) {
-						output = stdout;
-					} else {
-						throw new Error(stderr);
-					}
-				} catch (err) {
-					if (DEBUG_MODE)
-						log(Date().substring(16,24)+' easy-user-switch/src/extension.js - _runShell() communicate error: '+err);
+			if (status !== 0) {
+				throw new Gio.IOErrorEnum({
+					code: Gio.IOErrorEnum.FAILED,
+					message: stderr ? stderr.trim() : `Command '${argv}' failed with exit code ${status}`,
+				});
+			}
 
-				} finally {
-					loop.quit();
-				}
-			});
-		} catch (err) {
-			if (DEBUG_MODE)
-				log(Date().substring(16,24)+' easy-user-switch/src/extension.js - _runShell() general error: '+err);
+			return stdout.trim();
+		} finally {
+			if (cancelId > 0)
+				cancellable.disconnect(cancelId);
 		}
-		loop.run();
-		return output;
+	}
+
+	_logCommandError(context, err){
+		console.error(`easy-user-switch: ${context}`, err);
+	}
+
+	_logCommandDebug(context) {
+		if (this.settings.get_boolean('debug-mode'))
+			console.log(`easy-user-switch: ${context}`);
 	}
 
 	_disable(){
@@ -177,52 +155,33 @@ class EasyUserSwitch extends PanelMenu.Button {
 	}
 
 	_lockActiveScreen(){
-		const DEBUG_MODE = this.settings.get_boolean ('debug-mode');
-		if (DEBUG_MODE)
-			log(Date().substring(16,24)+' easy-user-switch/src/extension.js: locking screen');
+		this._logCommandDebug('locking screen');
 
 		Main.overview.hide(); //leave overview mode first if activated
 		Main.screenShield.lock(true); //lock screen
 	}
 
-	_switchTTY(item){
-		const DEBUG_MODE = this.settings.get_boolean ('debug-mode');
-		const ttyNumber = item.tty.replace("tty","");//only keep number
+	async _switchTTY(item){
+		this._logCommandDebug('loginctl to '+item.user+' (session '+item.session+')');
 
-		const SWITCH_METHOD = this.settings.get_string ('switch-method');
-		if (DEBUG_MODE)
-			log(Date().substring(16,24)+' easy-user-switch/src/extension.js - SWITCH_METHOD: '+SWITCH_METHOD);
-
-		switch(SWITCH_METHOD){
-			case 'chvt':
-				if (DEBUG_MODE)
-					log(Date().substring(16,24)+' easy-user-switch/src/extension.js - chvt: '+item.tty);
-
-				let output = this._runShell('sudo chvt '+ttyNumber); //switch to associated tty
-
-				if (!output){
-					if (DEBUG_MODE)
-						log(Date().substring(16,24)+' easy-user-switch/src/extension.js: '+'no output, display OSD warning');
-
-					const activeUser = GLib.get_user_name().toString();
-					const osdText = 'Please add the following to the /etc/sudoers file:\n'+activeUser+' ALL=(ALL:ALL) NOPASSWD: /usr/bin/chvt*';
-					this._showOSD('error-symbolic',osdText);
-				}
-				break;
-
-			case 'loginctl':
-					if (DEBUG_MODE)
-						log(Date().substring(16,24)+' easy-user-switch/src/extension.js - loginctl to '+item.user+' (session '+item.session+')');
-
-					this._runShell('loginctl activate '+item.session); //switch to associated tty
-					break;
-		}
-	}
-
-	_showOSD(osdIcon,osdText){
-		const icon = Gio.Icon.new_for_string(osdIcon);
-		const monitor = global.display.get_current_monitor(); //identify current monitor for OSD
-		Main.osdWindowManager.showOne(monitor, icon, osdText);
+		await this._runCommand(['loginctl', 'activate', item.session]); //switch to associated tty
 	}
 });
 
+export default class EasyUserSwitchExtension extends Extension {
+	enable(){
+		indicator = new EasyUserSwitch(this.getSettings(), this);
+		Main.panel.addToStatusArea('easyuserswitch-menu', indicator);//added it so it shows in gdm too
+	}
+
+	disable(){
+		// Session-mode changes tear down the visible indicator here, but
+		// lock-before-switch intentionally leaves a delayed handoff in flight.
+		// That flow locks the current session first, then completes the switch to
+		// GDM or another user from a 500ms timeout, so the extension still needs to
+		// run in unlock-dialog even though its panel UI is removed during disable().
+		indicator._disable();
+		indicator.destroy();
+		indicator = null;
+	}
+}
